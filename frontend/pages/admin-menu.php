@@ -78,7 +78,7 @@
             <div class="col-md-4">
               <label class="form-label">Image</label>
               <input id="c_img" type="file" accept="image/png,image/jpeg,image/webp" class="form-control">
-              <div class="form-text">২MB–৫MB-এর মধ্যে jpg/png/webp দিন; ধীর নেটে কিছু সময় লাগতে পারে।</div>
+              <div class="form-text">২–৫MB jpg/png/webp; ফাইল বাছাই করে Create চাপুন—সাথে সাথেই আপলোড হবে।</div>
             </div>
           </div>
         </div>
@@ -244,7 +244,7 @@
         if (!res.ok) throw new Error(data?.error || 'Create failed');
         const id = data?.item_id;
 
-        // Step 2: optional image upload (FormData, no manual Content-Type)
+        // Step 2: optional image upload (FormData—do not set Content-Type manually)
         if (file){
           const fd=new FormData();
           fd.append('actor_user_id', String(u.user_id));
@@ -262,7 +262,7 @@
       finally{ setCreateBusy(false); }
     });
 
-    // Row actions (save/upload/delete)
+    // Row actions
     document.addEventListener('click', async (e)=>{
       const save=e.target.closest('button[data-act="save"]');
       const del =e.target.closest('button[data-act="del"]');
@@ -314,20 +314,31 @@
       }
     });
 
-    // Confirm delete
-    document.getElementById('btnDelConfirm').addEventListener('click', async ()=>{
+    // Confirm delete with 409 handling
+    const btnDelConfirm = document.getElementById('btnDelConfirm');
+    function setDelBusy(on){ btnDelConfirm.disabled=!!on; btnDelConfirm.innerHTML = on ? '<span class="spinner-border spinner-border-sm me-2"></span>Deleting...' : 'Delete'; }
+    btnDelConfirm.addEventListener('click', async ()=>{
       const u=ensureAdmin(); if (!u) return;
       const id=WILL_DELETE; if (!id) return;
+      setDelBusy(true);
       try{
         const res=await fetch(`${APP}/backend/public/index.php?r=menu&a=delete`, {
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ actor_user_id: u.user_id, item_id: id })
         });
         const data=await res.json().catch(()=> ({}));
-        if (!res.ok) throw new Error(data?.error || 'Delete failed');
+        if (!res.ok){
+          const msg = data?.error || `Delete failed (${res.status})`;
+          if (res.status===409){
+            bootstrap.Modal.getInstance(document.getElementById('delModal'))?.hide();
+            alertBox('#listAlert','warning', msg + ' Try marking as "unavailable".');
+          } else alert(msg);
+          return;
+        }
         bootstrap.Modal.getInstance(document.getElementById('delModal'))?.hide();
         loadList();
-      }catch(err){ alertBox('#listAlert','danger', err?.message || 'Network error'); }
+      }catch(_){ alert('Network error'); }
+      finally{ setDelBusy(false); }
     });
 
     // Filters/events
