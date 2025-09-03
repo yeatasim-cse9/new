@@ -1,5 +1,5 @@
 <?php
-// frontend/pages/admin-menu.php — Admin Menu CRUD + image upload (requires admin login)
+// frontend/pages/admin-menu.php — Admin Menu CRUD + image upload + EDIT MODAL (requires admin login)
 ?>
 <!DOCTYPE html>
 <html lang="bn">
@@ -17,6 +17,7 @@
     .muted{ color:#6c757d }
     .img-thumb{ width:66px; height:44px; object-fit:cover; border-radius:8px; background:#f1f3f5 }
     .w-120{ width:120px } .w-90{ width:90px } .w-160{ width:160px }
+    .img-prev{ width:100%; max-width:240px; height:160px; object-fit:cover; border-radius:10px; background:#f1f3f5; border:1px solid #eee }
   </style>
 </head>
 <body>
@@ -103,7 +104,7 @@
                   <th>Description</th>
                   <th class="w-120">Status</th>
                   <th>Created</th>
-                  <th style="width:260px">Actions</th>
+                  <th style="width:320px">Actions</th>
                 </tr>
               </thead>
               <tbody id="grid">
@@ -126,6 +127,52 @@
         </div></div>
       </div>
 
+      <!-- EDIT modal -->
+      <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content border-0">
+          <div class="modal-header border-0">
+            <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Edit item</h5>
+            <button class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div id="editAlert" class="alert d-none" role="alert"></div>
+            <div class="row g-3">
+              <div class="col-md-8">
+                <div class="row g-2">
+                  <div class="col-md-8"><label class="form-label">Name</label><input id="e_name" class="form-control"></div>
+                  <div class="col-md-4"><label class="form-label">Price</label><input id="e_price" type="number" min="0" step="1" class="form-control"></div>
+                  <div class="col-md-6"><label class="form-label">Category</label><input id="e_cat" class="form-control"></div>
+                  <div class="col-md-6">
+                    <label class="form-label">Status</label>
+                    <select id="e_status" class="form-select">
+                      <option value="available">available</option>
+                      <option value="unavailable">unavailable</option>
+                    </select>
+                  </div>
+                  <div class="col-12"><label class="form-label">Description</label><input id="e_desc" class="form-control"></div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label d-flex align-items-center justify-content-between">
+                  <span>Image</span>
+                  <small class="text-muted">optional</small>
+                </label>
+                <img id="e_prev" class="img-prev mb-2" src="" alt="preview" onerror="this.src='/restaurant-app/frontend/assets/images/_placeholder.png'">
+                <input id="e_file" type="file" accept="image/png,image/jpeg,image/webp" class="form-control">
+                <div class="form-text">Max 5MB, jpg/png/webp</div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer border-0">
+            <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            <button id="btnEditSave" class="btn btn-danger">
+              <span id="spEdit" class="spinner-border spinner-border-sm me-2 d-none"></span>
+              Save changes
+            </button>
+          </div>
+        </div></div>
+      </div>
+
     </div>
   </section>
 
@@ -140,7 +187,7 @@
     function hideAlert(sel){ const b=$(sel); if (b) b.classList.add('d-none'); }
     function curUser(){ try{ return JSON.parse(localStorage.getItem('cr_user')||'null'); }catch{ return null; } }
 
-    let ADMIN=null, ROWS=[], WILL_DELETE=null;
+    let ADMIN=null, ROWS=[], WILL_DELETE=null, EDIT_ID=null;
 
     function ensureAdmin(){
       const u=curUser();
@@ -197,9 +244,10 @@
             </td>
             <td><span class="small">${r.created_at||''}</span></td>
             <td>
-              <div class="d-flex align-items-center gap-1">
+              <div class="d-flex flex-wrap align-items-center gap-1">
                 <button class="btn btn-sm btn-outline-primary" data-act="save"><i class="bi bi-save"></i> Save</button>
                 <button class="btn btn-sm btn-outline-secondary" data-act="upload"><i class="bi bi-upload"></i> Upload</button>
+                <button class="btn btn-sm btn-outline-dark" data-act="edit"><i class="bi bi-pencil-square"></i> Edit</button>
                 <button class="btn btn-sm btn-outline-danger" data-act="del"><i class="bi bi-trash3"></i> Delete</button>
               </div>
             </td>
@@ -249,7 +297,7 @@
         if (!res.ok) throw new Error(data?.error || 'Create failed');
         const id = data?.item_id;
 
-        // Step 2: optional image upload (FormData—do not set Content-Type manually)
+        // Step 2: optional image upload
         if (file){
           const fd=new FormData();
           fd.append('actor_user_id', String(u.user_id));
@@ -267,16 +315,40 @@
       finally{ setCreateBusy(false); }
     });
 
+    // EDIT modal helpers
+    const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+    function fillEdit(r){
+      EDIT_ID = r.item_id;
+      $('#e_name').value = r.name||'';
+      $('#e_price').value = Number(r.price||0);
+      $('#e_cat').value = r.category||'';
+      $('#e_desc').value = r.description||'';
+      $('#e_status').value = r.status||'available';
+      const prev = r.image ? `${APP}/backend/public/uploads/menu/${r.image}` : `${APP}/frontend/assets/images/_placeholder.png`;
+      $('#e_prev').src = prev;
+      $('#e_file').value = '';
+      hideAlert('#editAlert');
+    }
+    function setEditBusy(on){ $('#btnEditSave').disabled=!!on; $('#spEdit').classList.toggle('d-none', !on); }
+
     // Row actions
     document.addEventListener('click', async (e)=>{
       const save=e.target.closest('button[data-act="save"]');
       const del =e.target.closest('button[data-act="del"]');
       const up  =e.target.closest('button[data-act="upload"]');
-      if (!save && !del && !up) return;
+      const ed  =e.target.closest('button[data-act="edit"]');
+      if (!save && !del && !up && !ed) return;
       const u=ensureAdmin(); if (!u) return;
 
       const tr=e.target.closest('tr[data-id]'); if (!tr) return;
       const row=readRow(tr);
+
+      if (ed){
+        const r = ROWS.find(x=> x.item_id===row.item_id) || row;
+        fillEdit(r);
+        editModal.show();
+        return;
+      }
 
       if (save){
         hideAlert('#listAlert');
@@ -314,9 +386,60 @@
 
       if (del){
         WILL_DELETE = row.item_id;
-        document.getElementById('delMeta').textContent = `Delete "${row.name}" (#${row.item_id})?`;
-        const delModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('delModal'));
-        delModal.show();
+        $('#delMeta').textContent = `Delete "${row.name}" (#${row.item_id})?`;
+        bootstrap.Modal.getOrCreateInstance('#delModal').show();
+      }
+    });
+
+    // EDIT modal save (update + optional image)
+    document.getElementById('btnEditSave').addEventListener('click', async ()=>{
+      const u=ensureAdmin(); if (!u || !EDIT_ID) return;
+      hideAlert('#editAlert');
+
+      const payload = {
+        actor_user_id: u.user_id,
+        item_id: EDIT_ID,
+        name: $('#e_name').value.trim(),
+        price: parseFloat($('#e_price').value||'0'),
+        category: $('#e_cat').value.trim(),
+        description: $('#e_desc').value.trim(),
+        status: $('#e_status').value
+      };
+
+      if (!payload.name || !(payload.price>=0)){
+        return alertBox('#editAlert','warning','Valid name & price required');
+      }
+
+      setEditBusy(true);
+      try{
+        // Update fields
+        let res = await fetch(`${APP}/backend/public/index.php?r=menu&a=update`, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        });
+        let data = await res.json().catch(()=> ({}));
+        if (!res.ok) throw new Error(data?.error || 'Update failed');
+
+        // Optional image
+        const fileInput = $('#e_file');
+        const file = (fileInput && fileInput.files && fileInput.files[0]) ? fileInput.files[0] : null;
+        if (file){
+          const fd=new FormData();
+          fd.append('actor_user_id', String(u.user_id));
+          fd.append('item_id', String(EDIT_ID));
+          fd.append('image', file, file.name);
+          res = await fetch(`${APP}/backend/public/index.php?r=menu&a=upload_image`, { method:'POST', body: fd });
+          data = await res.json().catch(()=> ({}));
+          if (!res.ok) throw new Error(data?.error || 'Image upload failed');
+        }
+
+        editModal.hide();
+        loadList();
+      }catch(err){
+        alertBox('#editAlert','danger', err?.message || 'Network error');
+      }finally{
+        setEditBusy(false);
       }
     });
 
@@ -335,9 +458,8 @@
         const data=await res.json().catch(()=> ({}));
         if (!res.ok){
           const msg = data?.error || `Delete failed (${res.status})`;
-          const delModal = bootstrap.Modal.getInstance(document.getElementById('delModal'));
+          bootstrap.Modal.getInstance(document.getElementById('delModal'))?.hide();
           if (res.status===409){
-            delModal?.hide();
             alertBox('#listAlert','warning', msg + ' Try marking as "unavailable".');
           } else alert(msg);
           return;
