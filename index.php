@@ -22,43 +22,23 @@
 
   <style>
     :root{
-      --brand:#dc3545;
-      --ink:#222;
-      --muted:#6c757d;
-      --line:#eef1f4;
-      --radius:18px;
-      --glass1: rgba(255,255,255,.35);
-      --glass2: rgba(255,255,255,.14);
-      --blur: 10px;
-      --shadow: 0 18px 40px rgba(0,0,0,.08);
-      --container-pad: clamp(14px, 2vw, 24px);
+      --brand:#dc3545; --ink:#222; --muted:#6c757d; --line:#eef1f4; --radius:18px;
+      --glass1: rgba(255,255,255,.35); --glass2: rgba(255,255,255,.14); --blur: 10px;
+      --shadow: 0 18px 40px rgba(0,0,0,.08); --container-pad: clamp(14px, 2vw, 24px);
     }
     html,body{scroll-behavior:smooth}
-    .glass{
-      background: linear-gradient(135deg, var(--glass1), var(--glass2));
-      border: 1px solid rgba(255,255,255,.35);
-      backdrop-filter: blur(var(--blur));
-      -webkit-backdrop-filter: blur(var(--blur));
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-    }
-    .hero{
-      position:relative;
-      background: radial-gradient(1200px 600px at 10% 10%, #fff 0, #f7f9fb 45%, #f3f6f9 100%);
-      padding: 48px 0;
-    }
+    .glass{ background: linear-gradient(135deg, var(--glass1), var(--glass2)); border: 1px solid rgba(255,255,255,.35);
+      backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur)); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .hero{ position:relative; background: radial-gradient(1200px 600px at 10% 10%, #fff 0, #f7f9fb 45%, #f3f6f9 100%); padding: 48px 0; }
     .hero-badge{display:inline-block; padding:.28rem .6rem; border-radius:999px; background:#fff; border:1px solid var(--line); font-size:.85rem}
     .hero h1{font-weight:800; letter-spacing:-.02em}
     .cta .btn{border-radius:12px}
-
     .section{padding: 48px 0}
     .section-title{font-weight:800}
     .muted{color:var(--muted)}
     .features{display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px}
     .feature{padding:16px; border:1px solid var(--line); border-radius:16px; background:#fff}
     .feature .bi{font-size:1.25rem; color:var(--brand)}
-
-    /* Menu preview grid */
     .menu-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px}
     .menu-card{display:flex; flex-direction:column; border-radius:16px; overflow:hidden; border:1px solid var(--line); background:#fff; min-height:300px}
     .menu-card .img-wrap{height:140px; background:#f4f6f8; overflow:hidden}
@@ -69,21 +49,13 @@
     .menu-chip{display:inline-block; padding:.12rem .5rem; border-radius:999px; background:#eef1f4; font-size:.78rem; margin:.35rem 0}
     .menu-actions{margin-top:auto; display:flex; gap:8px}
     .menu-actions .btn{border-radius:10px}
-
-    /* Skeletons */
     .skel{background:linear-gradient(90deg,#f2f4f7 25%,#e9edf3 37%,#f2f4f7 63%); animation:sh 1.4s infinite ease; background-size:400% 100%}
     @keyframes sh{0%{background-position:100% 0}100%{background-position:-100% 0}}
     .skel.card{height:300px; border-radius:16px}
     .skel.line{height:14px; border-radius:8px}
-
-    /* Reviews */
     .review{border:1px solid var(--line); border-radius:16px; padding:12px; background:#fff}
     .star{color:#ffc107}
-
-    /* Map/embed placeholder */
     .map{height:280px; border-radius:16px; background:linear-gradient(135deg,#f0f3f7,#e9eef4)}
-
-    /* Footer note */
     .badge-soft{background:#fff; border:1px solid var(--line); border-radius:10px; padding:.25rem .5rem}
   </style>
 
@@ -180,7 +152,6 @@
 
       <div id="menuAlert" class="alert d-none" role="alert"></div>
       <div id="menuGrid" class="menu-grid" aria-live="polite" aria-busy="true">
-        <!-- Skeletons -->
         <div class="skel card"></div><div class="skel card"></div><div class="skel card"></div><div class="skel card"></div>
         <div class="skel card"></div><div class="skel card"></div><div class="skel card"></div><div class="skel card"></div>
       </div>
@@ -195,9 +166,7 @@
         <a href="/restaurant-app/frontend/pages/my-reservations.php" class="btn btn-outline-secondary btn-sm"><i class="bi bi-journal-text"></i> My reservations</a>
       </div>
       <div id="revAlert" class="alert d-none" role="alert"></div>
-      <div class="row g-3" id="reviews">
-        <!-- Reviews will render here -->
-      </div>
+      <div class="row g-3" id="reviews"></div>
     </div>
   </section>
 
@@ -243,10 +212,13 @@
     // Highlights
     async function loadHighlights(){
       const sp = el('#spHigh'); sp && sp.classList.remove('d-none');
-      const box = el('#highlights'); if (box) box.innerHTML = '<div class="skel line mb-2"></div><div class="skel line" style="width:70%"></div>';
+      const box = el('#highlights');
+      if (box) box.innerHTML = '<div class="skel line mb-2"></div><div class="skel line" style="width:70%"></div>';
       try{
-        // derive highlights from menu top-priced or first few items
-        const r = await fetch((window.APP_BASE||'') + '/backend/public/index.php?r=menu&a=list&limit=4&status=available');
+        const url = new URL((window.APP_BASE||'') + '/backend/public/index.php', window.location.origin);
+        url.searchParams.set('r','menu'); url.searchParams.set('a','list');
+        url.searchParams.set('status','available'); url.searchParams.set('limit','4');
+        const r = await fetch(url.toString());
         const d = await r.json().catch(()=> ({}));
         const items = (d && d.items) ? d.items.slice(0,3) : [];
         if (!items.length){ box.innerHTML = '<div class="small muted">No highlights available now.</div>'; return; }
@@ -268,11 +240,11 @@
       if (!items.length){ grid.innerHTML = '<div class="muted">No items</div>'; return; }
       for (let i=0;i<items.length;i++){
         const it = items[i];
-        const img = it.image ? ((window.APP_BASE||'') + '/frontend/assets/images/' + it.image) : '';
+        const img = it.image ? ((window.APP_BASE||'') + '/backend/public/uploads/menu/' + it.image) : ((window.APP_BASE||'') + '/frontend/assets/images/_placeholder.png');
         const card = document.createElement('div');
         card.className = 'menu-card';
         card.innerHTML = `
-          <div class="img-wrap">${img ? `<img src="${img}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${(window.APP_BASE||'')}/frontend/assets/images/_placeholder.png';">` : ''}</div>
+          <div class="img-wrap"><img src="${img}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${(window.APP_BASE||'')}/frontend/assets/images/_placeholder.png';"></div>
           <div class="menu-body">
             <div class="d-flex align-items-start justify-content-between">
               <div class="menu-title">${it.name||''}</div>
@@ -293,11 +265,16 @@
       if (!MENU.length){ grid.innerHTML = '<div class="skel card"></div><div class="skel card"></div><div class="skel card"></div><div class="skel card"></div>'; }
       try{
         const url = new URL((window.APP_BASE||'') + '/backend/public/index.php', window.location.origin);
-        url.searchParams.set('r','menu'); url.searchParams.set('a','list'); url.searchParams.set('status','available'); url.searchParams.set('limit','24');
-        const r = await fetch(url.toString()); const d = await r.json().catch(()=> ({}));
+        url.searchParams.set('r','menu'); url.searchParams.set('a','list');
+        url.searchParams.set('status','available'); url.searchParams.set('limit','24');
+        const r = await fetch(url.toString());
+        const d = await r.json().catch(()=> ({}));
         if (!r.ok){ throw new Error(d?.error || 'Load failed'); }
         MENU = d.items || [];
-        const list = q ? MENU.filter(it => ((it.name||'').toLowerCase().includes(q) || (it.description||'').toLowerCase().includes(q) || (it.category||'').toLowerCase().includes(q))) : MENU;
+        const query = (q||'').toLowerCase();
+        const list = query
+          ? MENU.filter(it => ((it.name||'').toLowerCase().includes(query) || (it.description||'').toLowerCase().includes(query) || (it.category||'').toLowerCase().includes(query)))
+          : MENU;
         renderMenu(list.slice(0,12));
       }catch(err){
         alert.className = 'alert alert-danger'; alert.textContent = err.message || 'Unable to load menu'; alert.classList.remove('d-none');
@@ -305,37 +282,58 @@
         grid.setAttribute('aria-busy','false');
       }
     }
-    // Debounced search
     let t=null;
     el('#btnSearch').addEventListener('click', ()=> {
       const q = (el('#q').value||'').toLowerCase().trim();
       clearTimeout(t); t = setTimeout(()=> loadMenu(q), 50);
     });
 
-    // Reviews
+    // Reviews: fetch few items, then per-item reviews and merge
     async function loadReviews(){
       const wrap = el('#reviews'); const alert = el('#revAlert');
       wrap.innerHTML = '';
       try{
-        const r = await fetch((window.APP_BASE||'') + '/backend/public/index.php?r=reviews&a=list&limit=6');
-        const d = await r.json().catch(()=> ({}));
-        if (!r.ok) throw new Error(d?.error || 'Failed to load reviews');
-        const items = d.items || [];
+        // 1) get some items to derive item_ids
+        const menuUrl = new URL((window.APP_BASE||'') + '/backend/public/index.php', window.location.origin);
+        menuUrl.searchParams.set('r','menu'); menuUrl.searchParams.set('a','list');
+        menuUrl.searchParams.set('status','available'); menuUrl.searchParams.set('limit','12');
+        const mr = await fetch(menuUrl.toString());
+        const md = await mr.json().catch(()=> ({}));
+        const items = (md && md.items) ? md.items.slice(0, 4) : [];
         if (!items.length){ wrap.innerHTML = '<div class="small muted">No reviews yet</div>'; return; }
-        wrap.innerHTML = items.map(rv => `
+
+        // 2) fetch per-item reviews (limit 3 each), then merge and take top 6 by created_at
+        const reqs = items.map(it=>{
+          const u = new URL((window.APP_BASE||'') + '/backend/public/index.php', window.location.origin);
+          u.searchParams.set('r','reviews'); u.searchParams.set('a','list');
+          u.searchParams.set('item_id', String(it.item_id)); u.searchParams.set('limit','3');
+          return fetch(u.toString()).then(r=> r.json().catch(()=> ({}))).then(d => ({ item: it, data: d }));
+        });
+        const packs = await Promise.all(reqs);
+        let combined = [];
+        packs.forEach(pk=>{
+          const arr = (pk.data && pk.data.items) ? pk.data.items.map(rv => ({ ...rv, _item: pk.item })) : [];
+          combined = combined.concat(arr);
+        });
+        combined.sort((a,b)=> (new Date(b.created_at) - new Date(a.created_at)));
+        const top = combined.slice(0,6);
+
+        if (!top.length){ wrap.innerHTML = '<div class="small muted">No reviews yet</div>'; return; }
+        wrap.innerHTML = top.map(rv => `
           <div class="col-md-6 col-lg-4">
             <div class="review h-100">
               <div class="d-flex align-items-center justify-content-between">
-                <div class="fw-bold">${rv.user?.name || ('User #'+(rv.user?.user_id||''))}</div>
+                <div class="fw-bold">${'User #'+(rv.user_id||'')}</div>
                 <div>${'★'.repeat(rv.rating||0)}${'☆'.repeat(5 - (rv.rating||0))}</div>
               </div>
-              <div class="small muted mt-1">${rv.item ? ('On ' + rv.item.name) : 'Restaurant'}</div>
-              <div class="mt-2">${(rv.comment || '').replace(/</g,'&lt;')}</div>
+              <div class="small muted mt-1">${rv._item ? ('On ' + (rv._item.name||'')) : ''}</div>
+              <div class="mt-2">${String(rv.comment||'').replace(/</g,'&lt;')}</div>
+              <div class="small muted mt-1">${rv.created_at||''}</div>
             </div>
           </div>
         `).join('');
       }catch(err){
-        alert.className='alert alert-danger'; alert.textContent = err.message || 'Unable to load reviews'; alert.classList.remove('d-none');
+        alert.className='alert alert-danger'; alert.textContent = (err && err.message) ? err.message : 'Unable to load reviews'; alert.classList.remove('d-none');
       }
     }
 

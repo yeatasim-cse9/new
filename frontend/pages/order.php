@@ -289,7 +289,9 @@
         if (!res.ok) throw new Error(data?.error || 'Order failed');
         const oid = data?.order?.order_id || 0; const total = Number(data?.order?.total_amount||0);
         LAST_ORDER = { id: oid, total };
+        // clear cart
         CART={}; saveCart(); renderCart(); MENU.forEach(it=>{ const sp=document.getElementById('q_'+it.item_id); if (sp) sp.textContent='0'; });
+        // prompt pay
         $('#pp_total').textContent = 'Total: ' + fmt(total);
         bootstrap.Modal.getOrCreateInstance('#payPrompt').show();
       }catch(err){ alertBox('danger', err?.message || 'Network error'); }
