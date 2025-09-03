@@ -31,7 +31,7 @@ $map = [
   'reviews'      => __DIR__ . '/../controllers/ReviewsController.php',
   'analytics'    => __DIR__ . '/../controllers/AnalyticsController.php',
   'payment'      => __DIR__ . '/../controllers/PaymentController.php',
-  // 'assets'     => __DIR__ . '/../controllers/AssetsController.php', // optional (binary responses)
+  // 'assets'     => __DIR__ . '/../controllers/AssetsController.php',
 ];
 
 // Validate resource file
@@ -64,10 +64,8 @@ $conn = db();
 
 try {
   // Dispatch to static method: Controller::action($conn)
-  // Use call_user_func for clarity and to avoid magic errors
   call_user_func([$cls, $a], $conn);
 } catch (Throwable $e) {
-  // In production, avoid leaking $e->getMessage()
   error_response('Server error', 500);
 } finally {
   if ($conn instanceof mysqli) { $conn->close(); }

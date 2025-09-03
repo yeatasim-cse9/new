@@ -131,6 +131,7 @@
 
   <?php include __DIR__ . "/../partials/footer.html"; ?>
 
+  <script src="/restaurant-app/frontend/assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
   <script>
     const APP = (window.APP_BASE || '');
     const $ = s => document.querySelector(s);
@@ -208,6 +209,8 @@
     }
 
     function readRow(tr){
+      const fileInput = tr.querySelector('[data-edit="file"]');
+      const file = (fileInput && fileInput.files && fileInput.files[0]) ? fileInput.files[0] : null;
       return {
         item_id: parseInt(tr.getAttribute('data-id')||'0',10),
         name: tr.querySelector('[data-edit="name"]').value.trim(),
@@ -215,7 +218,7 @@
         category: tr.querySelector('[data-edit="category"]').value.trim(),
         description: tr.querySelector('[data-edit="description"]').value.trim(),
         status: tr.querySelector('[data-edit="status"]').value,
-        file: tr.querySelector('[data-edit="file"]').files || null
+        file
       };
     }
 
@@ -230,7 +233,9 @@
       const category=$('#c_cat').value.trim();
       const status=$('#c_status').value;
       const description=$('#c_desc').value.trim();
-      const file=$('#c_img').files || null;
+      const imgInput = $('#c_img');
+      const file = (imgInput && imgInput.files && imgInput.files[0]) ? imgInput.files[0] : null;
+
       if (!name || !(price>=0)) return alertBox('#alert','warning','Valid name & price required');
 
       setCreateBusy(true);
@@ -249,14 +254,14 @@
           const fd=new FormData();
           fd.append('actor_user_id', String(u.user_id));
           fd.append('item_id', String(id));
-          fd.append('image', file);
+          fd.append('image', file, file.name);
           res=await fetch(`${APP}/backend/public/index.php?r=menu&a=upload_image`, { method:'POST', body: fd });
           data=await res.json().catch(()=> ({}));
           if (!res.ok) throw new Error(data?.error || 'Image upload failed');
         }
 
         // reset form
-        $('#c_name').value=''; $('#c_price').value=''; $('#c_cat').value=''; $('#c_desc').value=''; $('#c_status').value='available'; $('#c_img').value='';
+        $('#c_name').value=''; $('#c_price').value=''; $('#c_cat').value=''; $('#c_desc').value=''; $('#c_status').value='available'; if (imgInput) imgInput.value='';
         loadList();
       }catch(err){ alertBox('#alert','danger', err?.message || 'Network error'); }
       finally{ setCreateBusy(false); }
@@ -293,7 +298,7 @@
           const fd=new FormData();
           fd.append('actor_user_id', String(u.user_id));
           fd.append('item_id', String(row.item_id));
-          fd.append('image', row.file);
+          fd.append('image', row.file, row.file.name);
           const res=await fetch(`${APP}/backend/public/index.php?r=menu&a=upload_image`, { method:'POST', body: fd });
           const data=await res.json().catch(()=> ({}));
           if (!res.ok){
@@ -310,7 +315,8 @@
       if (del){
         WILL_DELETE = row.item_id;
         document.getElementById('delMeta').textContent = `Delete "${row.name}" (#${row.item_id})?`;
-        bootstrap.Modal.getOrCreateInstance('#delModal').show();
+        const delModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('delModal'));
+        delModal.show();
       }
     });
 
@@ -329,8 +335,9 @@
         const data=await res.json().catch(()=> ({}));
         if (!res.ok){
           const msg = data?.error || `Delete failed (${res.status})`;
+          const delModal = bootstrap.Modal.getInstance(document.getElementById('delModal'));
           if (res.status===409){
-            bootstrap.Modal.getInstance(document.getElementById('delModal'))?.hide();
+            delModal?.hide();
             alertBox('#listAlert','warning', msg + ' Try marking as "unavailable".');
           } else alert(msg);
           return;

@@ -118,13 +118,29 @@ class MenuController
 
     // allow up to 5 MB, jpg/png/webp
     $MAX = 5 * 1024 * 1024;
-    $check = validate_image_upload($_FILES['image'], ['jpg','png','webp'], ['image/jpeg','image/png','image/webp'], $MAX);
+    $check = validate_image_upload($_FILES['image'], ['jpg','jpeg','png','webp'], ['image/jpeg','image/png','image/webp'], $MAX);
     if (!($check['ok'] ?? false)) error_response($check['error'] ?? 'Invalid image', 400);
 
     // Save in web-accessible folder: backend/public/uploads/menu
     $destDir = __DIR__ . '/../public/uploads/menu';
     ensure_dir($destDir);
-    $fname = safe_filename('menu-'.$id, $check['ext']);
+
+    // Optional: remove any previous image for this item (keep it simple—only if stored)
+    $prev = '';
+    if ($st0 = $conn->prepare("SELECT image FROM menu_items WHERE item_id=?")){
+      $st0->bind_param('i', $id);
+      if ($st0->execute()){
+        $rs0 = $st0->get_result();
+        if ($r0 = $rs0->fetch_assoc()){ $prev = $r0['image'] ?? ''; }
+      }
+      $st0->close();
+    }
+    if ($prev){
+      $prevPath = rtrim($destDir,'/\\') . DIRECTORY_SEPARATOR . $prev;
+      if (is_file($prevPath)) @unlink($prevPath);
+    }
+
+    $fname = safe_filename('menu-'.$id.'-'.time(), $check['ext']);
     $path = rtrim($destDir,'/\\') . DIRECTORY_SEPARATOR . $fname;
 
     if (!move_uploaded_file($_FILES['image']['tmp_name'], $path)) error_response('Failed to save image', 500);
@@ -136,7 +152,7 @@ class MenuController
     if (!$st->execute()) error_response('DB error while updating image', 500);
     $st->close();
 
-    respond(['message'=>'Image uploaded','item_id'=>$id,'image'=>$img]);
+    respond(['message'=>'Image uploaded','item_id'=>$id,'image'=>$img], 201);
   }
 
   // POST ?r=menu&a=delete  Body JSON: { actor_user_id, item_id }

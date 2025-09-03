@@ -152,6 +152,7 @@
 
   <?php include __DIR__ . "/../partials/footer.html"; ?>
 
+  <script src="/restaurant-app/frontend/assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
   <script>
     const APP = (window.APP_BASE || '');
     const $ = s => document.querySelector(s);
@@ -194,9 +195,7 @@
             <div class="muted small">${it.description||''}</div>
             ${it.category ? `<span class="chip">${it.category}</span>` : ''}
             <div class="d-flex align-items-center justify-content-between mt-1">
-              <button class="btn btn-sm btn-outline-secondary" data-act="add" data-id="${it.item_id}">
-                <i class="bi bi-plus-circle"></i> Add
-              </button>
+              <button class="btn btn-sm btn-outline-secondary" data-act="add" data-id="${it.item_id}"><i class="bi bi-plus-circle"></i> Add</button>
               <div class="qty">
                 <button class="btn btn-outline-secondary btn-sm" data-act="dec" data-id="${it.item_id}">−</button>
                 <span class="mono" id="q_${it.item_id}">${q}</span>
@@ -276,6 +275,12 @@
     function setBusy(on){ const btn=$('#btnPlace'), sp=$('#spPlace'); btn.disabled=!!on; sp.classList.toggle('d-none', !on); }
     function alertBox(type,msg){ const b=$('#alert'); b.className='alert alert-'+type; b.textContent=msg; b.classList.remove('d-none'); setTimeout(()=>b.classList.add('d-none'), 3500); }
 
+    // Bootstrap modal instances
+    const payPromptEl = document.getElementById('payPrompt');
+    const payPrompt = bootstrap.Modal.getOrCreateInstance(payPromptEl);
+    const payOk = bootstrap.Modal.getOrCreateInstance(document.getElementById('payOk'));
+    const payLater = bootstrap.Modal.getOrCreateInstance(document.getElementById('payLater'));
+
     $('#btnPlace').addEventListener('click', async ()=>{
       const u=curUser(); const input=$('#user_id'); const user_id=(u&&u.user_id)?u.user_id:parseInt(input.value||'0',10);
       if (!(user_id>0)) return alertBox('warning','Valid User ID required');
@@ -289,11 +294,9 @@
         if (!res.ok) throw new Error(data?.error || 'Order failed');
         const oid = data?.order?.order_id || 0; const total = Number(data?.order?.total_amount||0);
         LAST_ORDER = { id: oid, total };
-        // clear cart
         CART={}; saveCart(); renderCart(); MENU.forEach(it=>{ const sp=document.getElementById('q_'+it.item_id); if (sp) sp.textContent='0'; });
-        // prompt pay
         $('#pp_total').textContent = 'Total: ' + fmt(total);
-        bootstrap.Modal.getOrCreateInstance('#payPrompt').show();
+        payPrompt.show();
       }catch(err){ alertBox('danger', err?.message || 'Network error'); }
       finally{ setBusy(false); }
     });
@@ -306,16 +309,16 @@
         const res=await fetch(`${APP}/backend/public/index.php?r=orders&a=pay`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ actor_user_id: actor, order_id: LAST_ORDER.id }) });
         const data=await res.json().catch(()=> ({}));
         if (!res.ok) throw new Error(data?.error || 'Payment failed');
-        bootstrap.Modal.getInstance(document.getElementById('payPrompt'))?.hide();
+        payPrompt.hide();
         document.getElementById('payOkMeta').textContent = `Order #${data.order_id} • Paid ${fmt(data.total_amount||LAST_ORDER.total)}`;
-        bootstrap.Modal.getOrCreateInstance('#payOk').show();
+        payOk.show();
       }catch(err){
         alertBox('danger', err?.message || 'Payment error');
       }
     });
     document.getElementById('pp_no').addEventListener('click', ()=>{
-      bootstrap.Modal.getInstance(document.getElementById('payPrompt'))?.hide();
-      bootstrap.Modal.getOrCreateInstance('#payLater').show();
+      payPrompt.hide();
+      payLater.show();
     });
 
     // Filters + init
