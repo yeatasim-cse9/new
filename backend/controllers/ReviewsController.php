@@ -36,11 +36,7 @@ class ReviewsController
     $q->execute(); $m = $q->get_result()->fetch_assoc(); $q->close();
     if (!$m) error_response('Menu item not found', 400);
 
-    // prevent duplicate review (user+item)
-    $q = $conn->prepare("SELECT 1 FROM reviews WHERE user_id=? AND item_id=? LIMIT 1");
-    $q->bind_param('ii', $user_id, $item_id);
-    $q->execute(); $dup = $q->get_result()->fetch_assoc(); $q->close();
-    if ($dup) error_response('Duplicate review for this item by the same user', 409);
+    // DUPLICATE CHECK REMOVED to allow multiple reviews per user-item
 
     $st = $conn->prepare("INSERT INTO reviews (user_id,item_id,rating,comment,created_at) VALUES (?,?,?,?,NOW())");
     $st->bind_param('iiis', $user_id, $item_id, $rating, $comment);
@@ -65,7 +61,15 @@ class ReviewsController
     $ag->bind_param('i', $item_id);
     $ag->execute(); $agg = $ag->get_result()->fetch_assoc() ?: ['rating_avg'=>null,'rating_count'=>0]; $ag->close();
 
-    $st = $conn->prepare("SELECT review_id,user_id,rating,comment,created_at FROM reviews WHERE item_id=? ORDER BY created_at DESC LIMIT ? OFFSET ?");
+    // include reviewer name
+    $st = $conn->prepare("
+      SELECT r.review_id, r.user_id, u.name AS user_name, r.rating, r.comment, r.created_at
+      FROM reviews r
+      JOIN users u ON u.user_id = r.user_id
+      WHERE r.item_id=?
+      ORDER BY r.created_at DESC
+      LIMIT ? OFFSET ?
+    ");
     $st->bind_param('iii', $item_id, $limit, $offset);
     $st->execute(); $rs = $st->get_result();
     $items = [];
@@ -73,6 +77,7 @@ class ReviewsController
       $items[] = [
         'review_id'=>(int)$r['review_id'],
         'user_id'=>(int)$r['user_id'],
+        'user_name'=>$r['user_name'],
         'rating'=>(int)$r['rating'],
         'comment'=>$r['comment'],
         'created_at'=>$r['created_at'],

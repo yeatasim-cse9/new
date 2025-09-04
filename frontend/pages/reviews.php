@@ -15,7 +15,7 @@
     .table td,.table th{ vertical-align: middle; }
     .mono{ font-family: ui-monospace, Menlo, Consolas, monospace; }
     .muted{ color:#6c757d }
-    .star{ color:#f59f00 }  /* golden */
+    .star{ color:#f59f00 }
     .star.gray{ color:#d0d5dd }
     .item-chip{ display:inline-block; padding:.2rem .5rem; border-radius:999px; background:#eef1f4; font-size:.8rem }
   </style>
@@ -74,7 +74,7 @@
 
             <div class="col-md-6">
               <div id="loginNotice" class="alert alert-warning d-none" role="alert">
-                লগইন করলে সরাসরি রিভিউ দেয়া যাবে। <a id="loginLink" class="alert-link" href="#">Login</a>
+                লগইন করলে সরাসরি রিভিউ দেয়া যাবে। <a id="loginLink" class="alert-link" href="login.php">Login</a>
               </div>
 
               <div id="revForm" class="row g-2 d-none">
@@ -143,6 +143,11 @@
     function alertBox(sel,type,msg){ const b=$(sel); b.className='alert alert-'+type; b.textContent=msg; b.classList.remove('d-none'); setTimeout(()=>b.classList.add('d-none'), 3500); }
     const stars = n => '★'.repeat(n) + '☆'.repeat(5-n);
 
+    // Escape HTML to prevent XSS when using innerHTML
+    const esc = s => String(s ?? '')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
     // State
     let MENU=[], FILTER_CAT='', ITEM_ID=null, USER=null;
 
@@ -158,9 +163,18 @@
     function renderItemSelect(){
       const sel=$('#item');
       const list = FILTER_CAT ? MENU.filter(x => String(x.category||'').toLowerCase().includes(FILTER_CAT)) : MENU;
-      sel.innerHTML = list.map(it => `<option value="${it.item_id}">${it.name} ${it.category?('• '+it.category):''}</option>`).join('');
-      if (list.length){ ITEM_ID = list.item_id; sel.value=String(ITEM_ID); updateMeta(); loadReviews(); }
-      else { ITEM_ID=null; $('#grid').innerHTML='<tr><td colspan="5" class="text-center text-muted">No items match filter</td></tr>'; resetAggregate(); }
+      sel.innerHTML = list.map(it => `<option value="${it.item_id}">${esc(it.name)} ${it.category?('• '+esc(it.category)) : ''}</option>`).join('');
+      if (list.length){
+        // keep current if still present, else default to first
+        ITEM_ID = (ITEM_ID && list.some(x=>x.item_id===ITEM_ID)) ? ITEM_ID : list.item_id;
+        sel.value=String(ITEM_ID);
+        updateMeta();
+        loadReviews();
+      } else {
+        ITEM_ID=null;
+        $('#grid').innerHTML='<tr><td colspan="5" class="text-center text-muted">No items match filter</td></tr>';
+        resetAggregate();
+      }
     }
 
     function resetAggregate(){
@@ -169,7 +183,7 @@
 
     function updateMeta(){
       const it = MENU.find(x=> x.item_id===ITEM_ID);
-      const meta = it ? (`${it.name} ${it.category?('<span class="item-chip ms-1">'+it.category+'</span>'):''}`) : '—';
+      const meta = it ? (`${esc(it.name)} ${it.category?('<span class="item-chip ms-1">'+esc(it.category)+'</span>'):''}`) : '—';
       $('#meta').innerHTML = meta;
     }
 
@@ -206,10 +220,10 @@
         $('#grid').innerHTML = items.map((r,i)=>`
           <tr>
             <td>${i+1}</td>
-            <td>${'User #'+r.user_id}</td>
+            <td>${esc(r.user_name || ('User #'+r.user_id))}</td>
             <td>${stars(Number(r.rating||0))}</td>
-            <td>${r.comment || '—'}</td>
-            <td><span class="small">${r.created_at}</span></td>
+            <td>${esc(r.comment || '—')}</td>
+            <td><span class="small">${esc(r.created_at)}</span></td>
           </tr>
         `).join('');
       }catch(_){

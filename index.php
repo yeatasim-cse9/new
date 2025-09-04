@@ -20,6 +20,16 @@
   <!-- Local Bootstrap (no CDN) -->
   <link rel="stylesheet" href="/restaurant-app/frontend/assets/vendor/bootstrap/bootstrap.min.css" />
 
+  <!-- Leaflet CSS (for interactive map) -->
+  <link rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin="anonymous">
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin="anonymous"></script>
+
   <style>
     :root{
       --brand:#dc3545; --ink:#222; --muted:#6c757d; --line:#eef1f4; --radius:18px;
@@ -176,7 +186,8 @@
       <div class="row g-3">
         <div class="col-lg-6">
           <h2 class="section-title">Visit us</h2>
-          <div class="map w-100"></div>
+          <!-- Map container: Leaflet needs a fixed height container -->
+          <div id="map" class="map w-100" aria-label="Map showing location"></div>
           <div class="d-flex gap-2 mt-2">
             <span class="badge-soft"><i class="bi bi-geo-alt"></i> Road 12, Gulshan, Dhaka</span>
             <span class="badge-soft"><i class="bi bi-telephone"></i> 01XXXXXXXXX</span>
@@ -208,6 +219,9 @@
   <script>
     const el = s => document.querySelector(s);
     const money = v => Number(v||0).toFixed(0);
+    const esc = s => String(s ?? '')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
     // Highlights
     async function loadHighlights(){
@@ -223,7 +237,7 @@
         const items = (d && d.items) ? d.items.slice(0,3) : [];
         if (!items.length){ box.innerHTML = '<div class="small muted">No highlights available now.</div>'; return; }
         box.innerHTML = items.map(it => `<div class="d-flex align-items-center justify-content-between py-1">
-          <div class="text-truncate" title="${it.name||''}">${it.name||''}</div>
+          <div class="text-truncate" title="${esc(it.name||'')}">${esc(it.name||'')}</div>
           <div class="fw-bold">৳${money(it.price)}</div>
         </div>`).join('');
       }catch(_){
@@ -247,11 +261,11 @@
           <div class="img-wrap"><img src="${img}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${(window.APP_BASE||'')}/frontend/assets/images/_placeholder.png';"></div>
           <div class="menu-body">
             <div class="d-flex align-items-start justify-content-between">
-              <div class="menu-title">${it.name||''}</div>
+              <div class="menu-title">${esc(it.name||'')}</div>
               <div class="price">৳${money(it.price)}</div>
             </div>
-            <div class="menu-desc">${it.description||''}</div>
-            ${it.category ? `<div class="menu-chip">${it.category}</div>` : ``}
+            <div class="menu-desc">${esc(it.description||'')}</div>
+            ${it.category ? `<div class="menu-chip">${esc(it.category)}</div>` : ``}
             <div class="menu-actions">
               <a class="btn btn-outline-secondary btn-sm flex-grow-1" href="/restaurant-app/frontend/pages/order.php"><i class="bi bi-plus-circle"></i> Add to cart</a>
             </div>
@@ -323,12 +337,12 @@
           <div class="col-md-6 col-lg-4">
             <div class="review h-100">
               <div class="d-flex align-items-center justify-content-between">
-                <div class="fw-bold">${'User #'+(rv.user_id||'')}</div>
+                <div class="fw-bold">${esc(rv.user_name || ('User #'+(rv.user_id||'')))}</div>
                 <div>${'★'.repeat(rv.rating||0)}${'☆'.repeat(5 - (rv.rating||0))}</div>
               </div>
-              <div class="small muted mt-1">${rv._item ? ('On ' + (rv._item.name||'')) : ''}</div>
-              <div class="mt-2">${String(rv.comment||'').replace(/</g,'&lt;')}</div>
-              <div class="small muted mt-1">${rv.created_at||''}</div>
+              <div class="small muted mt-1">${rv._item ? ('On ' + esc(rv._item.name||'')) : ''}</div>
+              <div class="mt-2">${esc(rv.comment || '')}</div>
+              <div class="small muted mt-1">${esc(rv.created_at||'')}</div>
             </div>
           </div>
         `).join('');
@@ -337,11 +351,28 @@
       }
     }
 
+    // Visit us: initialize Leaflet map (no API key needed)
+    function initMap(){
+      // Gulshan, Dhaka coordinates
+      const lat = 23.797911, lng = 90.414391; // reference coords
+      const map = L.map('map').setView([lat, lng], 14);
+
+      // OpenStreetMap tiles with attribution
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      // Marker + popup
+      L.marker([lat, lng]).addTo(map).bindPopup('The Cafe Rio — Gulshan').openPopup();
+    }
+
     // Init
     window.addEventListener('load', ()=>{
       loadHighlights();
       loadMenu('');
       loadReviews();
+      initMap();
     });
     el('#btnRefreshHighlights').addEventListener('click', loadHighlights);
   </script>
